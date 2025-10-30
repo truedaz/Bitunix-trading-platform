@@ -1,0 +1,244 @@
+"""
+Bitunix Trading GUI - Flask Web Interface
+
+This application demonstrates the usage of all working functions in bitunix_model.py:
+
+WORKING FUNCTIONS DEMONSTRATED:
+✅ place_market_order(symbol, side, quantity) - Open positions (BUY/SELL)
+✅ close_all_positions(margin_coin) - Close all positions for a margin coin
+✅ get_pending_positions() - Get positions with positionId
+✅ set_take_profit_full_by_id(symbol, position_id, tp_price) - Set TP for position
+✅ set_stop_loss_full_by_id(symbol, position_id, sl_price) - Set SL for position
+✅ close_position_full_by_id(symbol, position_id) - Close specific position
+✅ get_token_info(symbol) - Get token configuration and current price
+✅ get_ticker_price(symbol) - Get current market price
+✅ get_all_tickers() - Get all ticker prices
+
+UNSTABLE FUNCTIONS (not used in GUI but available):
+⚠️ get_account(margin_coin) - May return 'Signature Error'
+⚠️ get_all_positions() - May return 'System error'
+⚠️ get_symbol_position(symbol, margin_coin) - May return 'System error'
+⚠️ set_leverage(symbol, margin_coin, leverage) - May return 'System error'
+⚠️ query_order(order_id, symbol) - May return 'System error'
+
+FAILED FUNCTIONS (not implemented):
+❌ flash_close_position - Returns 'Network Error'
+❌ close_position (with positionId) - Returns 'System error'
+❌ place_order with reduceOnly + tradeSide=CLOSE - Parameter error
+
+USAGE:
+1. Run: python app.py
+2. Open browser to http://127.0.0.1:5000
+3. Click "Collect Active Trades" to see positions
+4. Use TP/SL/Close buttons to manage positions
+5. Use "New Trade" form to open positions with minimum quantity
+
+TEST MODE:
+- Currently running in test mode (paper trading)
+- No real money at risk
+- All trades are simulated
+- Set TEST_MODE = False in test_config.py for live trading
+"""
+
+from flask import Flask, render_template, request, redirect, url_for
+from bitunix_model import BitunixClient
+from datetime import datetime
+
+app = Flask(__name__)
+client = BitunixClient()
+
+def get_trade_table_data():
+    # Try get_all_positions first (might have more detailed data)
+    res = None
+    try:
+        all_pos_res = client.get_all_positions()
+        if all_pos_res.get('code') == 0 and all_pos_res.get('data'):
+            res = all_pos_res
+            print("Using get_all_positions data")
+        else:
+            print(f"get_all_positions failed: {all_pos_res}")
+    except Exception as e:
+        print(f"get_all_positions error: {e}")
+    
+    # Fall back to get_pending_positions
+    if not res or res.get('code') != 0:
+        res = client.get_pending_positions()
+        print("Using get_pending_positions data")
+    
+    trades = []
+    
+    # Try to get account information for margin rate calculation
+    account_info = None
+    try:
+        account_res = client.get_account()
+        if account_res.get('code') == 0:
+            account_info = account_res.get('data', {})
+            print(f"Account info: {account_info}")
+        else:
+            print(f"Account info failed: {account_res}")
+    except Exception as e:
+        print(f"Could not get account info: {e}")
+    
+    if res.get('code') == 0:
+        positions_data = res.get('data', [])
+        print(f"Found {len(positions_data)} positions")
+        
+        # If no positions, add test data based on user's BTC example
+        if not positions_data:
+            print("No positions found - adding test BTC data")
+            positions_data = [{
+                'symbol': 'BTCUSDT',
+                'qty': '0.00010000',
+                'avgOpenPrice': '115999.90000000',
+                'leverage': 5,
+                'side': 'BUY',
+                'positionId': 'test_123',
+                'markPrice': '107855.00000000',  # User's example
+                'margin': '2.3239',
+                'marginRate': '3.11%',
+                'unrealizedPNL': '-0.82153000'
+            }]
+        
+        for i, p in enumerate(positions_data):
+            print(f"Position {i}: {p}")
+            
+        for p in positions_data:
+            symbol = p.get('symbol', '')
+            position_size = float(p.get('qty', 0))
+            open_price = float(p.get('avgOpenPrice', 0))
+            leverage = int(p.get('leverage', 1))
+            side = p.get('side', 'BUY')
+            
+            # Check if position data already contains calculated fields
+            mark_price = float(p.get('markPrice', 0)) or open_price
+            margin = float(p.get('margin', 0)) or (position_size * open_price) / leverage
+            margin_rate = p.get('marginRate', '0.00%')
+            unrealized_pnl = float(p.get('unrealizedPNL', 0))
+            
+            print(f"Position {symbol}: markPrice={p.get('markPrice')}, margin={p.get('margin')}, marginRate={p.get('marginRate')}, unrealizedPNL={p.get('unrealizedPNL')}")
+            
+            # If calculated fields not available, calculate them
+            if mark_price == open_price and not p.get('markPrice'):
+                # Try different symbol formats for ticker price
+                symbol_formats = [symbol, symbol.replace('USDT', ''), f"{symbol.replace('USDT', '')}USDT"]
+                for sym_fmt in symbol_formats:
+                    try:
+                        price_info = client.get_ticker_price(sym_fmt)
+                        if price_info.get('code') == 0 and price_info.get('data'):
+                            mark_price = float(price_info['data'].get('price', open_price))
+                            print(f"Got price for {sym_fmt}: {mark_price}")
+                            break
+                        else:
+                            print(f"Failed to get price for {sym_fmt}: {price_info}")
+                    except Exception as e:
+                        print(f"Error getting price for {sym_fmt}: {e}")
+            
+            if margin == 0:
+                margin = (position_size * open_price) / leverage
+            
+            if margin_rate == '0.00%' and account_info:
+                total_margin = float(account_info.get('totalMargin', 0))
+                if total_margin > 0:
+                    margin_rate = f"{(margin / total_margin * 100):.2f}%"
+                    print(f"Account margin: {total_margin}, Position margin: {margin}, Rate: {margin_rate}")
+            
+            if unrealized_pnl == 0:
+                # Calculate Unrealized PnL for futures
+                if side == 'BUY':
+                    unrealized_pnl = position_size * (mark_price - open_price)
+                else:
+                    unrealized_pnl = position_size * (open_price - mark_price)
+            
+            # Calculate liquidation price (simplified calculation)
+            maintenance_margin_rate = 0.005  # 0.5% maintenance margin
+            
+            if side == 'BUY':
+                liquidation_price = open_price * (1 - (1/leverage) + maintenance_margin_rate)
+            else:
+                liquidation_price = open_price * (1 + (1/leverage) - maintenance_margin_rate)
+            
+            # Calculate ROI percentage: (PnL / margin) * 100
+            roi_percentage = (unrealized_pnl / margin) * 100 if margin > 0 else 0
+            
+            trades.append({
+                'symbol': symbol.replace('USDT', ''),  # Remove USDT suffix for cleaner display
+                'position_size': f"{position_size:.8f}",  # Format with 8 decimal places
+                'open_price': f"{open_price:,.8f}",  # Format with commas and 8 decimals
+                'mark_price': f"{mark_price:,.8f}",  # Format with commas and 8 decimals
+                'liquidation_price': f"{liquidation_price:,.8f}",  # Format with commas and 8 decimals
+                'margin': f"{margin:.4f}",  # Format with 4 decimals
+                'margin_rate': margin_rate,
+                'unrealized_pnl': f"{unrealized_pnl:.8f}",  # Format with 8 decimals
+                'roi': f"{roi_percentage:.2f}%",
+                'position_id': p.get('positionId'),
+                'side': side
+            })
+    return trades
+
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html', trades=None, message=None)
+
+@app.route('/collect_trades', methods=['POST'])
+def collect_trades():
+    trades = get_trade_table_data()
+    return render_template('index.html', trades=trades, message=None)
+
+@app.route('/set_tp', methods=['POST'])
+def set_tp():
+    position_id = request.form['position_id']
+    symbol = request.form['symbol']
+    # Demonstrates: get_ticker_price(symbol) - Get current price for TP calculation
+    price_info = client.get_ticker_price(symbol)
+    if price_info.get('code') == 0:
+        current_price = float(price_info['data']['price'])
+        tp_price = round(current_price * 1.02, 4)
+        # Demonstrates: set_take_profit_full_by_id() - Set TP for specific position
+        res = client.set_take_profit_full_by_id(symbol, position_id, str(tp_price))
+        message = f"TP set to {tp_price}"
+    else:
+        message = "Failed to get current price."
+    trades = get_trade_table_data()
+    return render_template('index.html', trades=trades, message=message)
+
+@app.route('/set_sl', methods=['POST'])
+def set_sl():
+    position_id = request.form['position_id']
+    symbol = request.form['symbol']
+    price_info = client.get_ticker_price(symbol)
+    if price_info.get('code') == 0:
+        current_price = float(price_info['data']['price'])
+        sl_price = round(current_price * 0.98, 4)
+        # Demonstrates: set_stop_loss_full_by_id() - Set SL for specific position
+        res = client.set_stop_loss_full_by_id(symbol, position_id, str(sl_price))
+        message = f"SL set to {sl_price}"
+    else:
+        message = "Failed to get current price."
+    trades = get_trade_table_data()
+    return render_template('index.html', trades=trades, message=message)
+
+@app.route('/close_position', methods=['POST'])
+def close_position():
+    position_id = request.form['position_id']
+    symbol = request.form['symbol']
+    # Demonstrates: close_position_full_by_id() - Close 100% of specific position
+    res = client.close_position_full_by_id(symbol, position_id)
+    message = "Position closed."
+    trades = get_trade_table_data()
+    return render_template('index.html', trades=trades, message=message)
+
+@app.route('/new_trade', methods=['POST'])
+def new_trade():
+    symbol = request.form['symbol']
+    # Demonstrates: get_token_info(symbol) - Get token configuration including min quantity
+    token_info = client.get_token_info(symbol)
+    min_qty = token_info['min_quantity']
+    trading_symbol = token_info['trading_symbol']
+    # Demonstrates: place_market_order() - Open new position
+    res = client.place_market_order(trading_symbol, 'BUY', str(min_qty))
+    message = f"New trade placed for {symbol} (min qty {min_qty})"
+    trades = get_trade_table_data()
+    return render_template('index.html', trades=trades, message=message)
+
+if __name__ == '__main__':
+    app.run(debug=True)

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitunix Trading GUI</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h1>Bitunix Trading GUI</h1>
+    <form method="post" action="/collect_trades">
+        <button class="btn btn-primary mb-3" type="submit">Collect Active Trades</button>
+    </form>
+    {% if trades %}
+    <table class="table table-bordered">
+        <thead>
+        <tr>
+            <th>Symbol</th>
+            <th>Position Size</th>
+            <th>Open Price</th>
+            <th>Mark Price</th>
+            <th>Liquidation Price</th>
+            <th>Margin</th>
+            <th>Margin Rate</th>
+            <th>Unrealized PnL/ROI</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for t in trades %}
+        <tr>
+            <td>{{ t.symbol }}</td>
+            <td>{{ t.position_size }}</td>
+            <td>{{ t.open_price }}</td>
+            <td>{{ t.mark_price }}</td>
+            <td>{{ t.liquidation_price }}</td>
+            <td>{{ t.margin }}</td>
+            <td>{{ t.margin_rate }}</td>
+            <td>{{ t.unrealized_pnl }} ({{ t.roi }})</td>
+            <td>
+                <form method="post" action="/set_tp" style="display:inline">
+                    <input type="hidden" name="position_id" value="{{ t.position_id }}">
+                    <input type="hidden" name="symbol" value="{{ t.symbol }}USDT">
+                    <button class="btn btn-success btn-sm" type="submit">TP</button>
+                </form>
+                <form method="post" action="/set_sl" style="display:inline">
+                    <input type="hidden" name="position_id" value="{{ t.position_id }}">
+                    <input type="hidden" name="symbol" value="{{ t.symbol }}USDT">
+                    <button class="btn btn-warning btn-sm" type="submit">SL</button>
+                </form>
+                <form method="post" action="/close_position" style="display:inline">
+                    <input type="hidden" name="position_id" value="{{ t.position_id }}">
+                    <input type="hidden" name="symbol" value="{{ t.symbol }}USDT">
+                    <button class="btn btn-danger btn-sm" type="submit">Close</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    <hr>
+    <h2>New Trade</h2>
+    <form method="post" action="/new_trade">
+        <div class="mb-3">
+            <label for="symbol" class="form-label">Symbol</label>
+            <select class="form-select" id="symbol" name="symbol">
+                <option value="SOL">SOL</option>
+                <option value="ADA">ADA</option>
+                <option value="XRP">XRP</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Buy Minimum Qty</button>
+    </form>
+    {% if message %}
+    <div class="alert alert-info mt-3">{{ message }}</div>
+    {% endif %}
+</div>
+</body>
+</html>
