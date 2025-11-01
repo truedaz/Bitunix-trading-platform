@@ -67,6 +67,11 @@ def get_trade_table_data():
     
     trades = []
     
+    # Format numbers without trailing zeros
+    def format_number(num, decimals=8):
+        formatted = f"{num:.{decimals}f}"
+        return formatted.rstrip('0').rstrip('.') if '.' in formatted else formatted
+    
     # Try to get account information for margin rate calculation
     account_info = None
     try:
@@ -162,13 +167,12 @@ def get_trade_table_data():
             
             trades.append({
                 'symbol': symbol.replace('USDT', ''),  # Remove USDT suffix for cleaner display
-                'position_size': f"{position_size:.8f}",  # Format with 8 decimal places
-                'open_price': f"{open_price:,.8f}",  # Format with commas and 8 decimals
-                'mark_price': f"{mark_price:,.8f}",  # Format with commas and 8 decimals
-                'liquidation_price': f"{liquidation_price:,.8f}",  # Format with commas and 8 decimals
-                'margin': f"{margin:.4f}",  # Format with 4 decimals
-                'margin_rate': margin_rate,
-                'unrealized_pnl': f"{unrealized_pnl:.8f}",  # Format with 8 decimals
+                'position_size': format_number(position_size, 8),
+                'open_price': format_number(open_price, 8),
+                'mark_price': format_number(mark_price, 8),
+                'liquidation_price': format_number(liquidation_price, 8),
+                'margin': format_number(margin, 4),
+                'unrealized_pnl': format_number(unrealized_pnl, 8),
                 'roi': f"{roi_percentage:.2f}%",
                 'position_id': p.get('positionId'),
                 'side': side

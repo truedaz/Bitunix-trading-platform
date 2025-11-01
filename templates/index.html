@@ -22,7 +22,6 @@
             <th>Mark Price</th>
             <th>Liquidation Price</th>
             <th>Margin</th>
-            <th>Margin Rate</th>
             <th>Unrealized PnL/ROI</th>
             <th>Actions</th>
         </tr>
@@ -36,7 +35,6 @@
             <td>{{ t.mark_price }}</td>
             <td>{{ t.liquidation_price }}</td>
             <td>{{ t.margin }}</td>
-            <td>{{ t.margin_rate }}</td>
             <td>{{ t.unrealized_pnl }} ({{ t.roi }})</td>
             <td>
                 <form method="post" action="/set_tp" style="display:inline">
