@@ -382,7 +382,14 @@ def new_trade():
     trading_symbol = token_info['trading_symbol']
     # Demonstrates: place_market_order() - Open new position
     res = client.place_market_order(trading_symbol, 'BUY', str(min_qty))
-    message = f"New trade placed for {symbol} (min qty {min_qty})"
+    
+    # Check if the order was actually successful
+    if res.get('code') == 0:
+        message = f"New trade placed for {symbol} (min qty {min_qty})"
+    else:
+        error_msg = res.get('msg', 'Unknown error')
+        message = f"Failed to place trade for {symbol}: {error_msg}"
+    
     trades = get_trade_table_data()
     return render_template('index.html', trades=trades, message=message)
 

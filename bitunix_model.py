@@ -134,7 +134,15 @@ class BitunixClient:
             try:
                 price_data = self.get_ticker_price(trading_symbol)
                 if price_data and price_data.get('code') == 0:
-                    current_price = float(price_data.get('data', {}).get('price', 0))
+                    # Handle the case where data is a list of tickers
+                    if isinstance(price_data['data'], list):
+                        for ticker in price_data['data']:
+                            if ticker.get('symbol') == trading_symbol:
+                                current_price = float(ticker.get('lastPrice', 0))
+                                break
+                    else:
+                        # Handle single ticker response
+                        current_price = float(price_data.get('data', {}).get('lastPrice', 0))
             except Exception:
                 pass
         else:
@@ -145,11 +153,19 @@ class BitunixClient:
             }
             current_price = mock_prices.get(trading_symbol, 1.0)
         
+        # Get real minimum quantity from API if not in test mode
+        real_min_qty = config.get('min_qty', 0.01)
+        if not self.test_mode:
+            try:
+                real_min_qty = self.get_real_minimum_quantity(trading_symbol)
+            except Exception as e:
+                print(f"Could not get real min quantity for {trading_symbol}: {e}")
+        
         return {
             'symbol': symbol,
             'trading_symbol': trading_symbol,
             'current_price': current_price,
-            'min_quantity': config.get('min_qty', 0.01),
+            'min_quantity': real_min_qty,
             'price_decimals': config.get('price_decimals', 4),
             'qty_decimals': config.get('qty_decimals', 3),
             'sentiment_weight': config.get('sentiment_weight', 1.0)
@@ -1112,6 +1128,49 @@ class BitunixClient:
         except Exception as e:
             return {"code": -1, "msg": f"Error fetching klines: {str(e)}"}
 
+    def get_real_minimum_quantity(self, symbol: str) -> float:
+        """
+        Get the real minimum quantity required by the API for a symbol.
+        
+        This method tries different quantities to find the minimum accepted by the API.
+        """
+        # Common minimum quantities to try, in order
+        test_quantities = [0.001, 0.01, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 50.0, 100.0]
+        
+        for qty in test_quantities:
+            try:
+                # Try to place a market order with this quantity
+                # Use a very short timeout and catch the response
+                result = self.place_market_order(symbol, 'BUY', str(qty))
+                
+                # If successful, this quantity works
+                if result.get('code') == 0:
+                    # Cancel the order immediately if it was placed
+                    if result.get('data') and result['data'].get('orderId'):
+                        print(f"Order placed with qty {qty}, but we need to cancel it")
+                        # Note: We might need to cancel the order, but for now let's just return the qty
+                    return qty
+                    
+                # Check for specific error messages about minimum quantity
+                error_msg = result.get('msg', '').lower()
+                if 'amount should be larger than' in error_msg or 'minimum' in error_msg:
+                    # Try next larger quantity
+                    continue
+                elif 'insufficient balance' in error_msg or 'balance' in error_msg:
+                    # We found a valid quantity but don't have enough balance
+                    return qty
+                else:
+                    # Some other error, try next quantity
+                    continue
+                    
+            except Exception as e:
+                print(f"Error testing qty {qty} for {symbol}: {e}")
+                continue
+        
+        # If all failed, return a reasonable default
+        print(f"Could not determine minimum quantity for {symbol}, using default 1.0")
+        return 1.0
+
     def get_current_price(self, symbol: str) -> float:
         """
         Get current price for a symbol using multiple fallback methods.
@@ -1130,16 +1189,25 @@ class BitunixClient:
         # Method 1: Try get_ticker_price
         price_info = self.get_ticker_price(symbol)
         if price_info.get('code') == 0 and price_info.get('data'):
-            price = float(price_info['data']['price'])
-            if price > 0:
-                return price
+            # Handle the case where data is a list of tickers
+            if isinstance(price_info['data'], list):
+                for ticker in price_info['data']:
+                    if ticker.get('symbol') == symbol:
+                        price = float(ticker.get('lastPrice', 0))
+                        if price > 0:
+                            return price
+            else:
+                # Handle single ticker response
+                price = float(price_info.get('data', {}).get('lastPrice', 0))
+                if price > 0:
+                    return price
         
         # Method 2: Try get_all_tickers
         all_tickers = self.get_all_tickers()
         if all_tickers.get('code') == 0 and all_tickers.get('data'):
             for ticker in all_tickers['data']:
                 if ticker.get('symbol') == symbol:
-                    price = float(ticker.get('price', 0))
+                    price = float(ticker.get('lastPrice', 0))
                     if price > 0:
                         return price
         

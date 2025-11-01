@@ -314,7 +314,7 @@ class TokenConfigManager:
         self.token_configs = {
             'XRP': {
                 'symbol': 'XRPUSDT',
-                'min_qty': 1.0,
+                'min_qty': 2.0,  # Updated to match API requirement
                 'price_decimals': 4,
                 'qty_decimals': 1,
                 'sentiment_weight': 1.0
