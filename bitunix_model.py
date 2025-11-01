@@ -347,7 +347,9 @@ class BitunixClient:
     def get_ticker_price(self, symbol: str) -> Dict[str, Any]:
         """Get current ticker price for a symbol"""
         try:
-            url = f"{self.base_url}/api/v1/futures/market/ticker"
+            # url = f"{self.base_url}/api/v1/futures/market/tickers?symbols=BTCUSDT,ETHUSDT"
+            # params = {}
+            url = f"{self.base_url}/api/v1/futures/market/tickers"
             params = {"symbol": symbol}
             
             response = self.session.get(url, params=params, timeout=10)

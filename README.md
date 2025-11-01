@@ -2,6 +2,9 @@
 
 A Flask web interface demonstrating all working functions of the Bitunix API client.
 
+## DOCS
+https://openapidoc.bitunix.com/doc/market/
+
 ## Features
 
 - **Active Trades Table**: Display all active positions with professional trading columns and accurate futures calculations:
