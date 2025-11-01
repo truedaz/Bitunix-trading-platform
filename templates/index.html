@@ -23,6 +23,7 @@
             <th>Liquidation Price</th>
             <th>Margin</th>
             <th>Unrealized PnL/ROI</th>
+            <th>Position ID</th>
             <th>Actions</th>
         </tr>
         </thead>
@@ -36,6 +37,7 @@
             <td>{{ t.liquidation_price }}</td>
             <td>{{ t.margin }}</td>
             <td>{{ t.unrealized_pnl }} ({{ t.roi }})</td>
+            <td>{{ t.position_id }}</td>
             <td>
                 <form method="post" action="/set_tp" style="display:inline">
                     <input type="hidden" name="position_id" value="{{ t.position_id }}">
