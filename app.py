@@ -188,16 +188,48 @@ def collect_trades():
 def set_tp():
     position_id = request.form['position_id']
     symbol = request.form['symbol']
-    # Demonstrates: get_ticker_price(symbol) - Get current price for TP calculation
-    price_info = client.get_ticker_price(symbol)
-    if price_info.get('code') == 0:
-        current_price = float(price_info['data']['price'])
+    
+    # Try multiple methods to get current price
+    current_price = None
+    
+    # Method 1: Use position mark price (most reliable)
+    trades = get_trade_table_data()
+    for trade in trades:
+        if str(trade['position_id']) == str(position_id):
+            current_price = float(trade['mark_price'].replace(',', ''))
+            print(f"Using position mark price: {current_price}")
+            break
+    
+    # Method 2: get_ticker_price (fallback)
+    if current_price is None or current_price == 0:
+        price_info = client.get_ticker_price(symbol)
+        if price_info.get('code') == 0 and price_info.get('data'):
+            current_price = float(price_info['data']['price'])
+            print(f"Got price from get_ticker_price: {current_price}")
+    
+    # Method 3: get_all_tickers (fallback)
+    if current_price is None or current_price == 0:
+        all_tickers = client.get_all_tickers()
+        if all_tickers.get('code') == 0 and all_tickers.get('data'):
+            for ticker in all_tickers['data']:
+                if ticker.get('symbol') == symbol:
+                    price = float(ticker.get('price', 0))
+                    if price > 0:
+                        current_price = price
+                        print(f"Got price from get_all_tickers: {current_price}")
+                        break
+    
+    if current_price is None or current_price == 0:
+        message = "Failed to get current price from all sources."
+    else:
         tp_price = round(current_price * 1.02, 4)
         # Demonstrates: set_take_profit_full_by_id() - Set TP for specific position
         res = client.set_take_profit_full_by_id(symbol, position_id, str(tp_price))
-        message = f"TP set to {tp_price}"
-    else:
-        message = "Failed to get current price."
+        if res.get('code') == 0:
+            message = f"TP set to {tp_price}"
+        else:
+            message = f"Failed to set TP: {res.get('msg')}"
+    
     trades = get_trade_table_data()
     return render_template('index.html', trades=trades, message=message)
 
@@ -205,15 +237,48 @@ def set_tp():
 def set_sl():
     position_id = request.form['position_id']
     symbol = request.form['symbol']
-    price_info = client.get_ticker_price(symbol)
-    if price_info.get('code') == 0:
-        current_price = float(price_info['data']['price'])
+    
+    # Try multiple methods to get current price
+    current_price = None
+    
+    # Method 1: Use position mark price (most reliable)
+    trades = get_trade_table_data()
+    for trade in trades:
+        if str(trade['position_id']) == str(position_id):
+            current_price = float(trade['mark_price'].replace(',', ''))
+            print(f"Using position mark price: {current_price}")
+            break
+    
+    # Method 2: get_ticker_price (fallback)
+    if current_price is None or current_price == 0:
+        price_info = client.get_ticker_price(symbol)
+        if price_info.get('code') == 0 and price_info.get('data'):
+            current_price = float(price_info['data']['price'])
+            print(f"Got price from get_ticker_price: {current_price}")
+    
+    # Method 3: get_all_tickers (fallback)
+    if current_price is None or current_price == 0:
+        all_tickers = client.get_all_tickers()
+        if all_tickers.get('code') == 0 and all_tickers.get('data'):
+            for ticker in all_tickers['data']:
+                if ticker.get('symbol') == symbol:
+                    price = float(ticker.get('price', 0))
+                    if price > 0:
+                        current_price = price
+                        print(f"Got price from get_all_tickers: {current_price}")
+                        break
+    
+    if current_price is None or current_price == 0:
+        message = "Failed to get current price from all sources."
+    else:
         sl_price = round(current_price * 0.98, 4)
         # Demonstrates: set_stop_loss_full_by_id() - Set SL for specific position
         res = client.set_stop_loss_full_by_id(symbol, position_id, str(sl_price))
-        message = f"SL set to {sl_price}"
-    else:
-        message = "Failed to get current price."
+        if res.get('code') == 0:
+            message = f"SL set to {sl_price}"
+        else:
+            message = f"Failed to set SL: {res.get('msg')}"
+    
     trades = get_trade_table_data()
     return render_template('index.html', trades=trades, message=message)
 

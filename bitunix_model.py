@@ -1110,6 +1110,41 @@ class BitunixClient:
         except Exception as e:
             return {"code": -1, "msg": f"Error fetching klines: {str(e)}"}
 
+    def get_current_price(self, symbol: str) -> float:
+        """
+        Get current price for a symbol using multiple fallback methods.
+        
+        This method tries multiple approaches to get the most reliable price:
+        1. get_ticker_price API call
+        2. get_all_tickers API call
+        3. Returns 0.0 if all methods fail
+        
+        Args:
+            symbol: Trading pair (e.g., "BTCUSDT")
+            
+        Returns:
+            Current price as float, or 0.0 if unable to fetch
+        """
+        # Method 1: Try get_ticker_price
+        price_info = self.get_ticker_price(symbol)
+        if price_info.get('code') == 0 and price_info.get('data'):
+            price = float(price_info['data']['price'])
+            if price > 0:
+                return price
+        
+        # Method 2: Try get_all_tickers
+        all_tickers = self.get_all_tickers()
+        if all_tickers.get('code') == 0 and all_tickers.get('data'):
+            for ticker in all_tickers['data']:
+                if ticker.get('symbol') == symbol:
+                    price = float(ticker.get('price', 0))
+                    if price > 0:
+                        return price
+        
+        # Method 3: Return 0.0 if all methods fail
+        print(f"Warning: Unable to fetch current price for {symbol}")
+        return 0.0
+
 
 # ==================== USAGE EXAMPLES ====================
 
