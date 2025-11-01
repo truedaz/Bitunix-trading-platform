@@ -4,6 +4,7 @@ A Flask web interface demonstrating all working functions of the Bitunix API cli
 
 ## DOCS
 https://openapidoc.bitunix.com/doc/market/
+https://github.com/BitunixOfficial/open-api
 
 ## Features
 

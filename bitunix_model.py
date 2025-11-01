@@ -350,7 +350,7 @@ class BitunixClient:
             # url = f"{self.base_url}/api/v1/futures/market/tickers?symbols=BTCUSDT,ETHUSDT"
             # params = {}
             url = f"{self.base_url}/api/v1/futures/market/tickers"
-            params = {"symbol": symbol}
+            params = {"symbols": symbol}
             
             response = self.session.get(url, params=params, timeout=10)
             return self._handle_response(response)
