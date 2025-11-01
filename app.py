@@ -222,7 +222,34 @@ def set_tp():
     if current_price is None or current_price == 0:
         message = "Failed to get current price from all sources."
     else:
-        tp_price = round(current_price * 1.02, 4)
+        # For BUY positions: TP above current price, SL below current price
+        # For SELL positions: TP below current price, SL above current price
+        position_side = None
+        for trade in trades:
+            if str(trade['position_id']) == str(position_id):
+                position_side = trade['side']
+                break
+        
+        if position_side == 'BUY':
+            tp_price = round(current_price * 1.02, 4)  # 2% above for longs
+            sl_price = round(current_price * 0.95, 4)  # 5% below for longs (more conservative)
+        else:  # SELL position
+            tp_price = round(current_price * 0.98, 4)  # 2% below for shorts
+            sl_price = round(current_price * 1.05, 4)  # 5% above for shorts (more conservative)
+        
+        print(f"Position side: {position_side}, Current price: {current_price}, TP: {tp_price}, SL: {sl_price}")
+        print(f"Debug - Current price type: {type(current_price)}, value: {repr(current_price)}")
+        print(f"Debug - TP calculation: {current_price} * 1.02 = {current_price * 1.02}")
+        print(f"Debug - SL calculation: {current_price} * 0.95 = {current_price * 0.95}")
+        
+        # Ensure SL is actually below current price for BUY positions
+        if position_side == 'BUY' and sl_price >= current_price:
+            sl_price = round(current_price * 0.90, 4)  # Emergency: 10% below
+            print(f"Emergency SL adjustment: {sl_price}")
+        elif position_side == 'SELL' and sl_price <= current_price:
+            sl_price = round(current_price * 1.10, 4)  # Emergency: 10% above
+            print(f"Emergency SL adjustment: {sl_price}")
+        
         # Demonstrates: set_take_profit_full_by_id() - Set TP for specific position
         res = client.set_take_profit_full_by_id(symbol, position_id, str(tp_price))
         if res.get('code') == 0:
@@ -271,7 +298,30 @@ def set_sl():
     if current_price is None or current_price == 0:
         message = "Failed to get current price from all sources."
     else:
-        sl_price = round(current_price * 0.98, 4)
+        # For BUY positions: TP above current price, SL below current price
+        # For SELL positions: TP below current price, SL above current price
+        position_side = None
+        for trade in trades:
+            if str(trade['position_id']) == str(position_id):
+                position_side = trade['side']
+                break
+        
+        if position_side == 'BUY':
+            sl_price = round(current_price * 0.95, 4)  # 5% below for longs
+        else:  # SELL position
+            sl_price = round(current_price * 1.05, 4)  # 5% above for shorts
+        
+        print(f"Position side: {position_side}, Current price: {current_price}, SL: {sl_price}")
+        print(f"Debug - SL calculation: {current_price} * 0.95 = {current_price * 0.95}")
+        
+        # Ensure SL is actually below current price for BUY positions
+        if position_side == 'BUY' and sl_price >= current_price:
+            sl_price = round(current_price * 0.90, 4)  # Emergency: 10% below
+            print(f"Emergency SL adjustment: {sl_price}")
+        elif position_side == 'SELL' and sl_price <= current_price:
+            sl_price = round(current_price * 1.10, 4)  # Emergency: 10% above
+            print(f"Emergency SL adjustment: {sl_price}")
+        
         # Demonstrates: set_stop_loss_full_by_id() - Set SL for specific position
         res = client.set_stop_loss_full_by_id(symbol, position_id, str(sl_price))
         if res.get('code') == 0:
