@@ -62,6 +62,33 @@
     {% endif %}
     <hr>
     <h2>New Trade</h2>
+    {% if trade_details %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5>🪙 {{ trade_details.symbol }} Trade Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Symbol:</strong> {{ trade_details.symbol }} ({{ trade_details.trading_symbol }})</p>
+                    <p><strong>Current Price:</strong> ${{ "%.4f"|format(trade_details.current_price) }}</p>
+                    <p><strong>Leverage:</strong> {{ trade_details.leverage }}x</p>
+                    <p><strong>Min Quantity:</strong> {{ trade_details.min_quantity }} {{ trade_details.symbol }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Position Value:</strong> ${{ "%.4f"|format(trade_details.position_value) }}</p>
+                    <p><strong>Margin Required:</strong> ${{ "%.4f"|format(trade_details.margin_required) }}</p>
+                    <p><strong>Risk:</strong> {{ "%.2f"|format(trade_details.risk_percentage) }}% of account</p>
+                    <p><strong>2% Potential Gain:</strong> ${{ "%.4f"|format(trade_details.potential_pnl_2pct) }}</p>
+                    <p><strong>Est. Liquidation:</strong> ${{ "%.4f"|format(trade_details.liquidation_price) }}</p>
+                </div>
+            </div>
+            <div class="mt-3">
+                <a href="/" class="btn btn-primary">← Back to Main</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
     <form method="post" action="/new_trade">
         <div class="mb-3">
             <label for="symbol" class="form-label">Symbol</label>
@@ -71,8 +98,9 @@
                 <option value="XRP">XRP</option>
             </select>
         </div>
-        <button class="btn btn-primary" type="submit">Buy Minimum Qty</button>
+        <button class="btn btn-primary" type="submit">Show Trade Details</button>
     </form>
+    {% endif %}
     {% if message %}
     <div class="alert alert-info mt-3">{{ message }}</div>
     {% endif %}

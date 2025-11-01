@@ -376,22 +376,49 @@ def close_position():
 @app.route('/new_trade', methods=['POST'])
 def new_trade():
     symbol = request.form['symbol']
-    # Demonstrates: get_token_info(symbol) - Get token configuration including min quantity
-    token_info = client.get_token_info(symbol)
-    min_qty = token_info['min_quantity']
-    trading_symbol = token_info['trading_symbol']
-    # Demonstrates: place_market_order() - Open new position
-    res = client.place_market_order(trading_symbol, 'BUY', str(min_qty))
     
-    # Check if the order was actually successful
-    if res.get('code') == 0:
-        message = f"New trade placed for {symbol} (min qty {min_qty})"
-    else:
-        error_msg = res.get('msg', 'Unknown error')
-        message = f"Failed to place trade for {symbol}: {error_msg}"
+    # Get trade details (similar to test script)
+    client = BitunixClient()
+    token_info = client.get_token_info(symbol)
+    trading_symbol = token_info['trading_symbol']
+    min_quantity = token_info['min_quantity']
+    current_price = token_info['current_price']
+    
+    # Get leverage dynamically
+    leverage = 5  # Default
+    try:
+        positions = client.get_pending_positions()
+        if positions.get('code') == 0:
+            data = positions.get('data', [])
+            if data:
+                leverage = int(data[0].get('leverage', 5))
+    except:
+        pass
+    
+    # Calculate trade details
+    quantity = min_quantity
+    position_value = quantity * current_price
+    margin_required = position_value / leverage
+    potential_pnl = position_value * 0.02  # 2% potential gain
+    liquidation_price = current_price * (1 - (1/leverage) + 0.005)  # Simplified calc
+    risk_percentage = (margin_required / 25.0) * 100  # Assuming $25 account
+    
+    trade_details = {
+        'symbol': symbol,
+        'trading_symbol': trading_symbol,
+        'min_quantity': min_quantity,
+        'current_price': current_price,
+        'leverage': leverage,
+        'quantity': quantity,
+        'position_value': position_value,
+        'margin_required': margin_required,
+        'potential_pnl_2pct': potential_pnl,
+        'liquidation_price': liquidation_price,
+        'risk_percentage': risk_percentage
+    }
     
     trades = get_trade_table_data()
-    return render_template('index.html', trades=trades, message=message)
+    return render_template('index.html', trades=trades, trade_details=trade_details, message=None)
 
 if __name__ == '__main__':
     app.run(debug=True)
