@@ -130,8 +130,17 @@ def get_trade_table_data():
                     try:
                         price_info = client.get_ticker_price(sym_fmt)
                         if price_info.get('code') == 0 and price_info.get('data'):
-                            mark_price = float(price_info['data'].get('price', open_price))
-                            print(f"Got price for {sym_fmt}: {mark_price}")
+                            # Handle the case where data is a list of tickers
+                            if isinstance(price_info['data'], list):
+                                for ticker in price_info['data']:
+                                    if ticker.get('symbol') == sym_fmt:
+                                        mark_price = float(ticker.get('lastPrice', open_price))
+                                        print(f"Got price for {sym_fmt}: {mark_price}")
+                                        break
+                            else:
+                                # Handle single ticker response
+                                mark_price = float(price_info['data'].get('lastPrice', open_price))
+                                print(f"Got price for {sym_fmt}: {mark_price}")
                             break
                         else:
                             print(f"Failed to get price for {sym_fmt}: {price_info}")
@@ -208,8 +217,17 @@ def set_tp():
     if current_price is None or current_price == 0:
         price_info = client.get_ticker_price(symbol)
         if price_info.get('code') == 0 and price_info.get('data'):
-            current_price = float(price_info['data']['price'])
-            print(f"Got price from get_ticker_price: {current_price}")
+            # Handle the case where data is a list of tickers
+            if isinstance(price_info['data'], list):
+                for ticker in price_info['data']:
+                    if ticker.get('symbol') == symbol:
+                        current_price = float(ticker.get('lastPrice', 0))
+                        print(f"Got price from get_ticker_price: {current_price}")
+                        break
+            else:
+                # Handle single ticker response
+                current_price = float(price_info['data'].get('lastPrice', 0))
+                print(f"Got price from get_ticker_price: {current_price}")
     
     # Method 3: get_all_tickers (fallback)
     if current_price is None or current_price == 0:
@@ -284,8 +302,17 @@ def set_sl():
     if current_price is None or current_price == 0:
         price_info = client.get_ticker_price(symbol)
         if price_info.get('code') == 0 and price_info.get('data'):
-            current_price = float(price_info['data']['price'])
-            print(f"Got price from get_ticker_price: {current_price}")
+            # Handle the case where data is a list of tickers
+            if isinstance(price_info['data'], list):
+                for ticker in price_info['data']:
+                    if ticker.get('symbol') == symbol:
+                        current_price = float(ticker.get('lastPrice', 0))
+                        print(f"Got price from get_ticker_price: {current_price}")
+                        break
+            else:
+                # Handle single ticker response
+                current_price = float(price_info['data'].get('lastPrice', 0))
+                print(f"Got price from get_ticker_price: {current_price}")
     
     # Method 3: get_all_tickers (fallback)
     if current_price is None or current_price == 0:
